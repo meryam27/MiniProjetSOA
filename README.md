@@ -1,3 +1,7 @@
+# DESCRIPTION OF THE APP :
+
+A production-ready microservices architecture for managing hospital operations: patients, doctors, appointments, medical records, prescriptions, lab reports, pharmacy orders, and billing.
+
 | Microservice         | Port | Responsibility                       |
 | -------------------- | ---- | ------------------------------------ |
 | auth-service         | 3001 | Registration, login, JWT tokens      |
