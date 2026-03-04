@@ -1,32 +1,39 @@
-// pharmacy.controller.js
+// pharmacy-service/controllers/pharmacy.controller.js
 import { Pharmacy } from "../models/pharmacy.model.js";
+import { prescriptionBreaker } from "../../circuit-breaker.js";
 
-// POST /api/pharmacy/create → doctor ou admin
 export const createPharmacyOrder = async (req, res) => {
   try {
     if (req.user.role !== "doctor" && req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({
-          message: "only doctors and admins can create pharmacy orders",
-        });
+      return res.status(403).json({
+        message: "only doctors and admins can create pharmacy orders",
+      });
     }
 
-    // vérifier qu'une commande n'existe pas déjà pour cette prescription
     const existing = await Pharmacy.findOne({
       prescriptionId: req.body.prescriptionId,
     });
     if (existing) {
-      return res
-        .status(400)
-        .json({
-          message: "a pharmacy order already exists for this prescription",
-        });
+      return res.status(400).json({
+        message: "a pharmacy order already exists for this prescription",
+      });
+    }
+
+    // ✅ un seul argument objet avec les deux données nécessaires
+    const prescription = await prescriptionBreaker.fire({
+      prescriptionId: req.body.prescriptionId, // ← req.body pas req.user
+      authToken: req.headers.authorization,
+    });
+
+    if (!prescription) {
+      return res.status(404).json({
+        message: "prescription not found or service unavailable",
+      });
     }
 
     const order = await Pharmacy.create({
       ...req.body,
-      status: "pending", // toujours pending à la création
+      status: "pending",
     });
 
     res.status(201).json(order);
@@ -34,7 +41,6 @@ export const createPharmacyOrder = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 // GET /api/pharmacy/patient/:patientId → historique des commandes d'un patient
 export const getPatientOrders = async (req, res) => {
   try {
@@ -135,11 +141,9 @@ export const updateOrderStatus = async (req, res) => {
 
     const validStatuses = ["pending", "preparing", "ready", "dispensed"];
     if (!validStatuses.includes(status)) {
-      return res
-        .status(400)
-        .json({
-          message: `status must be one of: ${validStatuses.join(", ")}`,
-        });
+      return res.status(400).json({
+        message: `status must be one of: ${validStatuses.join(", ")}`,
+      });
     }
 
     const updateData = { status };

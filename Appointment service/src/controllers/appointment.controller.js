@@ -1,5 +1,6 @@
 import { Appointment } from "../models/appointment.model.js";
 import axios from "axios";
+import { billingBreaker, doctorBreaker } from "../../circuit-breaker.js";
 
 export const createAppointment = async (req, res) => {
   let appointment = null;
@@ -11,41 +12,57 @@ export const createAppointment = async (req, res) => {
         .json({ message: "only patients can create appointments" });
     }
 
-    // 1. créer le RDV
+    const { doctorId, date, time, reason } = req.body;
+
+    // ✅ Appel protégé par circuit breaker au lieu d'axios direct
+    // Si doctor-service est down → le fallback retourne { available: false }
+    const doctor = await doctorBreaker.fire(
+      doctorId,
+      req.headers.authorization,
+    );
+
+    // null = doctor pas trouvé OU service down (fallback)
+    if (!doctor) {
+      return res.status(404).json({
+        message: "Doctor not found or service unavailable",
+      });
+    }
+    // 1. Créer le RDV
     appointment = await Appointment.create({
       patientId: req.user.id,
-      doctorId: req.body.doctorId,
-      date: req.body.date,
-      time: req.body.time,
-      reason: req.body.reason,
+      doctorId,
+      date,
+      time,
+      reason,
       status: "pending",
     });
 
-    // 2. notifier billing-service automatiquement
-    await axios.post(
-      `${process.env.BILLING_SERVICE_URL}/api/billing/create`,
-      {
-        patientId: appointment.patientId.toString(),
-        appointmentId: appointment._id.toString(),
-        doctorId: appointment.doctorId.toString(),
-        items: [
-          {
-            description: "Consultation fee",
-            amount: 200,
-          },
-        ],
-      },
-      {
-        headers: { Authorization: req.headers.authorization },
-      },
-    );
+    // 2. ✅ Notifier billing-service via circuit breaker
+    // Si billing-service est down → fallback retourne { status: "indisponible" }
+    const billing = await billingBreaker.fire({
+      patientId: appointment.patientId.toString(),
+      appointmentId: appointment._id.toString(),
+      doctorId: appointment.doctorId.toString(),
+      items: [{ description: "Consultation fee", amount: 200 }],
+      // on passe le token dans l'objet car .fire() n'accepte qu'un seul argument
+      authToken: req.headers.authorization,
+    });
+
+    // Si billing a échoué (fallback déclenché), on annule le RDV
+    if (billing?.status === "indisponible") {
+      await Appointment.findByIdAndDelete(appointment._id);
+      return res.status(503).json({
+        message: "Billing service unavailable. Appointment cancelled.",
+      });
+    }
 
     res.status(201).json({
       appointment,
+      billing,
       message: "Appointment created and bill generated successfully",
     });
   } catch (error) {
-    // si billing échoue → annuler le RDV pour garder la cohérence
+    // Annuler le RDV si une erreur inattendue survient après sa création
     if (appointment) {
       await Appointment.findByIdAndDelete(appointment._id);
     }

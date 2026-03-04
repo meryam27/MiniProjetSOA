@@ -5,7 +5,13 @@ dotenv.config();
 const app = express();
 
 app.use(express.json());
-
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "healthy",
+    service: "auth-service",
+    timestamp: new Date().toISOString(),
+  });
+});
 app.use("/api/appointments", appointmentsRoutes);
 
 export default app;

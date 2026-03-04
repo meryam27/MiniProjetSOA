@@ -51,3 +51,14 @@ export const getMyPrescription = async (req, res) => {
 };
 
 // a faire plus tard endpoints pour : - cancel - delete - voir tous (admin)
+export const getPerscriptionById = async (req, res) => {
+  try {
+    const prescription = await Prescription.findById(req.params.id);
+    if (!prescription) {
+      return res.status(400).json({ message: "perscription not found" });
+    }
+    return res.status(200).json(prescription);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};

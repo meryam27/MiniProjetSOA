@@ -1,0 +1,132 @@
+http:
+  port: 8080
+
+admin:
+  port: 9876
+  host: localhost
+
+apiEndpoints:
+  auth:
+    host: "*"
+    paths: ["/auth", "/auth/*"]
+  patient:
+    host: "*"
+    paths: ["/api/patient", "/api/patient/*"]
+  doctor:
+    host: "*"
+    paths: ["/api/doctors", "/api/doctors/*"]
+  billing:
+    host: "*"
+    paths: ["/api/billing", "/api/billing/*"]
+  lab:
+    host: "*"
+    paths: ["/api/lab", "/api/lab/*"]
+  pharmacy:
+    host: "*"
+    paths: ["/api/pharmacy", "/api/pharmacy/*"]
+  prescription:
+    host: "*"
+    paths: ["/api/prescription", "/api/prescription/*"]
+  medrecord:
+    host: "*"
+    paths: ["/api/medrecords", "/api/medrecords/*"]
+  appointment:
+    host: "*"
+    paths: ["/api/appointments", "/api/appointments/*"]
+
+serviceEndpoints:
+  authService:
+    url: "http://localhost:3001"
+  patientService:
+    url: "http://localhost:3002"
+  doctorService:
+    url: "http://localhost:3004"
+  billingService:
+    url: "http://localhost:3006"
+  labService:
+    url: "http://localhost:3007"
+  pharmacyService:
+    url: "http://localhost:3008"
+  prescriptionService:
+    url: "http://localhost:3009"
+  medrecordService:
+    url: "http://localhost:3005"
+  appointmentService:
+    url: "http://localhost:3003"
+
+policies:
+  - proxy
+  - rate-limit
+
+pipelines:
+  authPipeline:
+    apiEndpoints: [auth]
+    policies:
+      - proxy:
+          action:
+            serviceEndpoint: authService
+            changeOrigin: true
+
+  patientPipeline:
+    apiEndpoints: [patient]
+    policies:
+      - proxy:
+          action:
+            serviceEndpoint: patientService
+            changeOrigin: true
+
+  doctorPipeline:
+    apiEndpoints: [doctor]
+    policies:
+      - proxy:
+          action:
+            serviceEndpoint: doctorService
+            changeOrigin: true
+
+  billingPipeline:
+    apiEndpoints: [billing]
+    policies:
+      - proxy:
+          action:
+            serviceEndpoint: billingService
+            changeOrigin: true
+
+  labPipeline:
+    apiEndpoints: [lab]
+    policies:
+      - proxy:
+          action:
+            serviceEndpoint: labService
+            changeOrigin: true
+
+  pharmacyPipeline:
+    apiEndpoints: [pharmacy]
+    policies:
+      - proxy:
+          action:
+            serviceEndpoint: pharmacyService
+            changeOrigin: true
+
+  prescriptionPipeline:
+    apiEndpoints: [prescription]
+    policies:
+      - proxy:
+          action:
+            serviceEndpoint: prescriptionService
+            changeOrigin: true
+
+  medrecordPipeline:
+    apiEndpoints: [medrecord]
+    policies:
+      - proxy:
+          action:
+            serviceEndpoint: medrecordService
+            changeOrigin: true
+
+  appointmentPipeline:
+    apiEndpoints: [appointment]
+    policies:
+      - proxy:
+          action:
+            serviceEndpoint: appointmentService
+            changeOrigin: true
